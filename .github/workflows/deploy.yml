@@ -21,6 +21,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            # Configure git for authentication
+            git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
             # Remove old deployment
             cd ${{ secrets.DEPLOY_PATH }}
             rm -rf venv .env
@@ -34,7 +37,7 @@ jobs:
             pip install gunicorn
 
             # Pull latest code from GitHub
-            git pull origin main
+            git pull origin ${{ github.ref_name }}
 
             # Create systemd service file
             echo '[Unit]' > /etc/systemd/system/daana.service
