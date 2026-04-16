@@ -21,12 +21,22 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            # Configure git for authentication
-            git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+            # Load port from env file
+            cd ${{ secrets.DEPLOY_PATH }}
+            PORT=$(grep "^PORT=" .env 2>/dev/null | cut -d'=' -f2)
+            PORT=${PORT:-8001}
+
+            # Kill any existing daana processes
+            pkill -f "python.*server.py" 2>/dev/null || true
+            rm -f daana.pid 2>/dev/null || true
+
+            # Check what's using the port
+            echo "Checking port $PORT..."
+            ss -tlnp | grep $PORT || echo "Port $PORT is free"
 
             # Remove old deployment
-            cd ${{ secrets.DEPLOY_PATH }}
-            rm -rf venv .env
+            rm -rf venv
+            rm -f .env
 
             # Create virtual environment
             python3 -m venv venv
@@ -34,33 +44,51 @@ jobs:
 
             # Install dependencies
             pip install --upgrade pip
-            pip install gunicorn
 
             # Pull latest code from GitHub
             git pull origin ${{ github.ref_name }}
 
+            # Create .env file with port
+            echo "HOST=0.0.0.0" > .env
+            echo "PORT=$PORT" >> .env
+            echo "DEBUG=False" >> .env
+
             # Create systemd service file
-            echo '[Unit]' > /etc/systemd/system/daana.service
-            echo 'Description=Daana App Server' >> /etc/systemd/system/daana.service
-            echo 'After=network.target' >> /etc/systemd/system/daana.service
-            echo '' >> /etc/systemd/system/daana.service
-            echo '[Service]' >> /etc/systemd/system/daana.service
-            echo 'Type=simple' >> /etc/systemd/system/daana.service
-            echo 'User=www-data' >> /etc/systemd/system/daana.service
-            echo "WorkingDirectory=${{ secrets.DEPLOY_PATH }}" >> /etc/systemd/system/daana.service
-            echo 'Environment="PATH=${{ secrets.DEPLOY_PATH }}/venv/bin:/usr/bin"' >> /etc/systemd/system/daana.service
-            echo "ExecStart=${{ secrets.DEPLOY_PATH }}/venv/bin/python server.py" >> /etc/systemd/system/daana.service
-            echo 'Restart=always' >> /etc/systemd/system/daana.service
-            echo 'RestartSec=5' >> /etc/systemd/system/daana.service
-            echo '' >> /etc/systemd/system/daana.service
-            echo '[Install]' >> /etc/systemd/system/daana.service
-            echo 'WantedBy=multi-user.target' >> /etc/systemd/system/daana.service
+            cat > /etc/systemd/system/daana.service << EOF
+[Unit]
+Description=Daana App Server
+After=network.target
 
-            # Reload systemd
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=${{ secrets.DEPLOY_PATH }}
+Environment="PATH=${{ secrets.DEPLOY_PATH }}/venv/bin:/usr/bin"
+ExecStart=${{ secrets.DEPLOY_PATH }}/venv/bin/python server.py
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=daana
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+            # Reload systemd and restart service
             systemctl daemon-reload
+            systemctl restart daana 2>&1 || echo "Systemd restart failed, using background mode"
 
-            # Start the server
+            # Start as background process for immediate access
             source venv/bin/activate
-            nohup python server.py > server.log 2>&1 &
+            nohup python server.py > ${{ secrets.DEPLOY_PATH }}/server.log 2>&1 &
+            echo $! > ${{ secrets.DEPLOY_PATH }}/daana.pid
+
+            # Wait for server to start
+            sleep 3
+
+            # Verify server is running
+            echo "Checking if server is running..."
+            curl -s http://127.0.0.1:$PORT || echo "Server not yet responding"
 
             echo "Deployment completed at $(date)"
