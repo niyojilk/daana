@@ -1,0 +1,12 @@
+{
+  "name": "daana-hello-world",
+  "version": "1.0.0",
+  "description": "Simple Hello World web app for Daana",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js"
+  },
+  "keywords": ["daana", "hello-world"],
+  "license": "MIT"
+}

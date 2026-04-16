@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+
+# Hello app
+hello-app/node_modules/
+hello-app/dist/
