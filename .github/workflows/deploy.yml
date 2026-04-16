@@ -2,7 +2,9 @@ name: Deploy Daana App
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - master
 
 jobs:
   deploy:
@@ -11,26 +13,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build app
-        run: npm run build 2>/dev/null || echo "No build step needed for static app"
-
       - name: Deploy to server
-        run: |
-          echo "Building static files for deployment..."
-          mkdir -p dist
-          cp app.js dist/
-          echo "Deployment would happen here (e.g., rsync to server)"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: appleboy/ssh-action@v0.1.8
         with:
-          name: daana-app
-          path: hello-app/
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            # Remove old deployment
+            cd ${{ secrets.DEPLOY_PATH }}
+            rm -rf venv .env
+
+            # Create virtual environment
+            python3 -m venv venv
+            source venv/bin/activate
+
+            # Install dependencies
+            pip install --upgrade pip
+            pip install gunicorn
+
+            # Pull latest code from GitHub
+            git pull origin main
+
+            # Create systemd service file
+            echo '[Unit]' > /etc/systemd/system/daana.service
+            echo 'Description=Daana App Server' >> /etc/systemd/system/daana.service
+            echo 'After=network.target' >> /etc/systemd/system/daana.service
+            echo '' >> /etc/systemd/system/daana.service
+            echo '[Service]' >> /etc/systemd/system/daana.service
+            echo 'Type=simple' >> /etc/systemd/system/daana.service
+            echo 'User=www-data' >> /etc/systemd/system/daana.service
+            echo "WorkingDirectory=${{ secrets.DEPLOY_PATH }}" >> /etc/systemd/system/daana.service
+            echo 'Environment="PATH=${{ secrets.DEPLOY_PATH }}/venv/bin:/usr/bin"' >> /etc/systemd/system/daana.service
+            echo "ExecStart=${{ secrets.DEPLOY_PATH }}/venv/bin/python server.py" >> /etc/systemd/system/daana.service
+            echo 'Restart=always' >> /etc/systemd/system/daana.service
+            echo 'RestartSec=5' >> /etc/systemd/system/daana.service
+            echo '' >> /etc/systemd/system/daana.service
+            echo '[Install]' >> /etc/systemd/system/daana.service
+            echo 'WantedBy=multi-user.target' >> /etc/systemd/system/daana.service
+
+            # Reload systemd
+            systemctl daemon-reload
+
+            # Start the server
+            source venv/bin/activate
+            nohup python server.py > server.log 2>&1 &
+
+            echo "Deployment completed at $(date)"

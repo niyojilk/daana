@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple Python HTTP server for serving the hello world app."""
+"""Simple Python HTTP server for serving the Daana app."""
 
 import os
 import socket
@@ -21,8 +21,8 @@ HOST = os.environ.get('HOST', '0.0.0.0')
 # Determine the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-class HelloHandler(SimpleHTTPRequestHandler):
-    """Custom handler for serving the hello app."""
+class DaanaHandler(SimpleHTTPRequestHandler):
+    """Custom handler for serving the Daana app."""
 
     def do_OPTIONS(self):
         """Handle CORS preflight requests."""
@@ -44,14 +44,14 @@ def find_free_port():
 
 def main():
     """Start the HTTP server."""
-    print(f"Starting Hello World Server...")
+    print(f"Starting Daana App Server...")
     print(f"Host: {HOST}")
     print(f"Port: {PORT}")
     print(f"Listening on http://{HOST}:{PORT}")
     print(f"Press Ctrl+C to stop")
 
     server_address = (HOST, PORT)
-    httpd = HTTPServer(server_address, HelloHandler)
+    httpd = HTTPServer(server_address, DaanaHandler)
 
     try:
         httpd.serve_forever()

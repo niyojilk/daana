@@ -1,0 +1,13 @@
+{
+  "name": "daana-app",
+  "version": "1.0.0",
+  "description": "Daana App - Temple Daana booking management system",
+  "main": "server.py",
+  "scripts": {
+    "start": "python server.py",
+    "dev": "python server.py",
+    "install": "pip install -r requirements.txt"
+  },
+  "keywords": ["daana", "temple", "booking"],
+  "license": "MIT"
+}
