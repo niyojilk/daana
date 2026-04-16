@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - niyojilk-dev
 
 jobs:
   deploy:
