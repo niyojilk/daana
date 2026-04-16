@@ -21,6 +21,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            # Configure git for authentication
+            git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
             # Load port from env file
             cd ${{ secrets.DEPLOY_PATH }}
             PORT=$(grep "^PORT=" .env 2>/dev/null | cut -d'=' -f2)
@@ -30,13 +33,8 @@ jobs:
             pkill -f "python.*server.py" 2>/dev/null || true
             rm -f daana.pid 2>/dev/null || true
 
-            # Check what's using the port
-            echo "Checking port $PORT..."
-            ss -tlnp | grep $PORT || echo "Port $PORT is free"
-
-            # Remove old deployment
+            # Remove old virtual environment
             rm -rf venv
-            rm -f .env
 
             # Create virtual environment
             python3 -m venv venv
@@ -53,7 +51,7 @@ jobs:
             echo "PORT=$PORT" >> .env
             echo "DEBUG=False" >> .env
 
-            # Create systemd service file
+            # Create systemd service file (exactly like TodoApp)
             cat > /etc/systemd/system/daana.service << EOF
 [Unit]
 Description=Daana App Server
@@ -62,6 +60,7 @@ After=network.target
 [Service]
 Type=simple
 User=www-data
+Group=www-data
 WorkingDirectory=${{ secrets.DEPLOY_PATH }}
 Environment="PATH=${{ secrets.DEPLOY_PATH }}/venv/bin:/usr/bin"
 ExecStart=${{ secrets.DEPLOY_PATH }}/venv/bin/python server.py
@@ -70,25 +69,27 @@ RestartSec=5
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=daana
+UMask=0002
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-            # Reload systemd and restart service
+            # Set ownership
+            chown -R www-data:www-data ${{ secrets.DEPLOY_PATH }}
+
+            # Reload systemd and start service
             systemctl daemon-reload
-            systemctl restart daana 2>&1 || echo "Systemd restart failed, using background mode"
+            systemctl enable daana
+            systemctl restart daana
 
-            # Start as background process for immediate access
-            source venv/bin/activate
-            nohup python server.py > ${{ secrets.DEPLOY_PATH }}/server.log 2>&1 &
-            echo $! > ${{ secrets.DEPLOY_PATH }}/daana.pid
+            # Check status
+            echo "Daana service status:"
+            systemctl status daana -l --no-pager 2>&1 || true
 
-            # Wait for server to start
-            sleep 3
-
-            # Verify server is running
-            echo "Checking if server is running..."
-            curl -s http://127.0.0.1:$PORT || echo "Server not yet responding"
+            # Verify server is responding
+            echo "Checking if server is running on port $PORT..."
+            sleep 2
+            curl -s http://127.0.0.1:$PORT | head -1 || echo "Server not yet responding"
 
             echo "Deployment completed at $(date)"
