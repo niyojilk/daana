@@ -61,29 +61,27 @@ jobs:
             echo "PORT=$PORT" >> .env
             echo "DEBUG=False" >> .env
 
-            # Create systemd service file
-            cat > /etc/systemd/system/daana.service << 'EOF'
-[Unit]
-Description=Daana App Server
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=${DEPLOY_PATH}
-Environment="PATH=${DEPLOY_PATH}/venv/bin:/usr/bin"
-ExecStart=${DEPLOY_PATH}/venv/bin/python server.py
-Restart=always
-RestartSec=5
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=daana
-UMask=0002
-
-[Install]
-WantedBy=multi-user.target
-EOF
+            # Create systemd service file using echo commands
+            echo "[Unit]" > /etc/systemd/system/daana.service
+            echo "Description=Daana App Server" >> /etc/systemd/system/daana.service
+            echo "After=network.target" >> /etc/systemd/system/daana.service
+            echo "" >> /etc/systemd/system/daana.service
+            echo "[Service]" >> /etc/systemd/system/daana.service
+            echo "Type=simple" >> /etc/systemd/system/daana.service
+            echo "User=www-data" >> /etc/systemd/system/daana.service
+            echo "Group=www-data" >> /etc/systemd/system/daana.service
+            echo "WorkingDirectory=${{ secrets.DEPLOY_PATH }}" >> /etc/systemd/system/daana.service
+            echo 'Environment="PATH=${{ secrets.DEPLOY_PATH }}/venv/bin:/usr/bin"' >> /etc/systemd/system/daana.service
+            echo "ExecStart=${{ secrets.DEPLOY_PATH }}/venv/bin/python server.py" >> /etc/systemd/system/daana.service
+            echo "Restart=always" >> /etc/systemd/system/daana.service
+            echo "RestartSec=5" >> /etc/systemd/system/daana.service
+            echo "StandardOutput=syslog" >> /etc/systemd/system/daana.service
+            echo "StandardError=syslog" >> /etc/systemd/system/daana.service
+            echo "SyslogIdentifier=daana" >> /etc/systemd/system/daana.service
+            echo "UMask=0002" >> /etc/systemd/system/daana.service
+            echo "" >> /etc/systemd/system/daana.service
+            echo "[Install]" >> /etc/systemd/system/daana.service
+            echo "WantedBy=multi-user.target" >> /etc/systemd/system/daana.service
 
             # Set ownership
             chown -R www-data:www-data ${{ secrets.DEPLOY_PATH }}
