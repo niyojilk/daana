@@ -21,15 +21,12 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            # Configure git for authentication
-            git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
-
-            # Load port from env file
+            # Load port from env file (default to 9001 if not set)
             cd ${{ secrets.DEPLOY_PATH }}
             PORT=$(grep "^PORT=" .env 2>/dev/null | cut -d'=' -f2)
-            PORT=${PORT:-8001}
+            PORT=${PORT:-9001}
 
-            # Kill any existing processes on this port (old version of same app)
+            # Kill any existing processes on this port
             echo "Killing any processes on port $PORT..."
             ss -tlnp | grep $PORT | awk '{print $7}' | grep ":" | cut -d'/' -f2 | xargs -r kill -9 2>/dev/null || true
             lsof -ti:$PORT | xargs -r kill -9 2>/dev/null || true
