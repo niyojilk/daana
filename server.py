@@ -15,7 +15,7 @@ if os.path.exists(ENV_FILE):
             os.environ[key] = value.strip()
 
 # Get port from environment or use default
-PORT = int(os.environ.get('PORT', 3000))
+PORT = int(os.environ.get('PORT', 8001))
 HOST = os.environ.get('HOST', '0.0.0.0')
 
 # Determine the directory where this script is located

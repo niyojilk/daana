@@ -11,7 +11,7 @@ This platform allows temples to register, list available monks/helpers, and mana
 1. Copy `.env.example` to `.env` and configure:
    ```
    HOST=0.0.0.0
-   PORT=3000
+   PORT=8001
    DEBUG=False
    ```
 
